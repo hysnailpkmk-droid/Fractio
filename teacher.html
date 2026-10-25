@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FRACTIO – Teacher Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="index.html">
+    <svg class="logo" viewBox="0 0 40 40" aria-hidden="true">
+      <circle cx="20" cy="20" r="18" fill="#ede9fe" stroke="#7c3aed" stroke-width="2.5"/>
+      <path d="M20 20 L20 2 A18 18 0 0 1 38 20 Z" fill="#ec4899"/>
+      <path d="M20 20 L38 20 A18 18 0 0 1 20 38 Z" fill="#7c3aed"/>
+    </svg>
+    <b>FRACTIO</b> <span class="muted" style="font-size:.9rem;font-weight:500">Teacher Dashboard</span>
+  </a>
+  <div style="flex:1"></div>
+  <div id="userbox" class="userbox hidden">
+    <span id="whoami"></span>
+    <button id="logout" class="btn ghost sm">Log out</button>
+  </div>
+</header>
+
+<main>
+  <!-- Login -->
+  <section id="loginView" class="card" style="max-width:440px;margin:40px auto">
+    <h2>Teacher login</h2>
+    <form id="loginForm">
+      <label for="tEmail">Email</label>
+      <input id="tEmail" type="email" autocomplete="username" required>
+      <label for="tPass">Password</label>
+      <input id="tPass" type="password" autocomplete="current-password" required>
+      <p></p>
+      <button class="btn" style="width:100%" type="submit">Log in</button>
+    </form>
+    <div id="loginMsg" class="msg hidden"></div>
+    <p class="muted" style="margin-top:16px;font-size:.9rem"><a href="index.html">← Back to student page</a></p>
+  </section>
+
+  <!-- Dashboard -->
+  <section id="dashView" class="hidden">
+    <div class="toolbar">
+      <h2 style="margin:0;flex:1">Class overview</h2>
+      <button id="refresh" class="btn ghost sm">↻ Refresh</button>
+      <button id="exportXlsx" class="btn sm">⬇ Export to Excel</button>
+    </div>
+    <div id="stats" class="stats"></div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="overview">Student Progress</button>
+      <button class="tab" data-tab="quiz">Quiz Master Results</button>
+      <button class="tab" data-tab="refl">Student Reflections</button>
+    </div>
+
+    <div id="tab-overview">
+      <div class="toolbar"><input id="search" placeholder="Search name or class…"></div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Student Name</th><th>Class</th><th class="c">Learning</th><th class="c">Laboratory</th><th class="c">Challenge</th><th class="c">Quiz</th><th>Progress</th></tr></thead>
+          <tbody id="progressBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="tab-quiz" class="hidden">
+      <div class="card"><h3>Questions students find difficult</h3><p class="muted">Percentage of students (latest attempt) who answered correctly.</p><div id="qStats"></div></div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Student Name</th><th>Class</th><th class="c">Score</th><th class="c">Correct</th><th>Date</th></tr></thead>
+          <tbody id="quizBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="tab-refl" class="hidden"><div id="reflList"></div></div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/common.js"></script>
+<script src="js/teacher.js"></script>
+</body>
+</html>
