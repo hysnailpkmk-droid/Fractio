@@ -16,14 +16,16 @@ Isi folder:
 4. **Project Settings → API**: salin **Project URL** dan **anon public key**.
 5. Buka `js/config.js`, ganti `SUPABASE_URL` dan `SUPABASE_ANON_KEY` dengan nilai tadi. (Jangan pakai `service_role` key.)
 
-## 2. Akun guru
-1. Supabase → **Authentication → Users → Add user** → isi email & password guru, centang **Auto Confirm User**.
-2. Di **SQL Editor**, jalankan (ganti emailnya):
-   ```sql
-   update public.profiles set role = 'teacher'
-   where id = (select id from auth.users where email = 'EMAIL_GURU');
-   ```
-3. Guru login di `teacher.html` memakai email & password tersebut.
+## 2. Akun guru (lewat tombol "Teacher Dashboard")
+Di pojok kanan atas halaman utama ada tombol **👩‍🏫 Teacher Dashboard** yang membuka `teacher.html`.
+1. Buka `supabase/teacher_access.sql`, ganti `GANTI_KODE_GURU` dengan **kode akses guru** pilihanmu, lalu jalankan di SQL Editor.
+   Kode ini tersimpan di database (tidak terlihat di kode web), jadi siswa tidak bisa membacanya.
+2. Di `teacher.html` pilih tab **Create teacher account** → isi nama, username (misal `guru`), password, dan kode akses → akun guru jadi.
+3. Login berikutnya cukup username + password di tab **Teacher log in** (email juga boleh).
+4. Untuk dosen: buat satu akun (misal username `dosen`) dengan cara yang sama, lalu kirim username dan passwordnya. Atau berikan kode aksesnya agar dosen membuat akun sendiri.
+
+Kalau ada akun siswa yang login di `teacher.html`, halaman akan meminta kode akses; kode yang benar langsung mengubahnya jadi guru.
+Mengganti kode: `update public.app_secrets set value = 'KODE_BARU' where key = 'teacher_code';`
 
 ## 3. GitHub
 1. Buat repository baru di github.com (misal `fractio`).

@@ -4,13 +4,41 @@ const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
 let D = { students: [], progress: {}, quizLatest: {}, quizAll: [], reflections: [], responses: [], byId: {} };
 
-function showLoginMsg(t) { const m = $("#loginMsg"); m.textContent = t; m.className = "msg err"; }
+function showLoginMsg(t, kind = "err") { const m = $("#loginMsg"); m.textContent = t; m.className = "msg " + kind; }
 const fmtDate = s => s ? new Date(s).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" }) : "";
 
 $("#loginForm").addEventListener("submit", async e => {
   e.preventDefault();
-  const { error } = await sb.auth.signInWithPassword({ email: $("#tEmail").value.trim(), password: $("#tPass").value });
-  if (error) return showLoginMsg("Wrong email or password.");
+  const { error } = await sb.auth.signInWithPassword({ email: toEmail($("#tUser").value), password: $("#tPass").value });
+  if (error) return showLoginMsg("Wrong username/email or password.");
+  await enter(await getSessionUser());
+});
+
+// Create a new teacher account (needs the secret teacher access code)
+$("#registerForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const username = $("#rUser").value.trim().toLowerCase();
+  if (!/^[a-z0-9._-]{3,}$/.test(username) && !username.includes("@")) {
+    return showLoginMsg("Username must be at least 3 characters: letters, numbers, dot, dash or underscore.");
+  }
+  const { data, error } = await sb.auth.signUp({
+    email: toEmail(username), password: $("#rPass").value,
+    options: { data: { username: username.split("@")[0], full_name: $("#rName").value.trim(), class_name: "Teacher" } }
+  });
+  if (error) return showLoginMsg(/registered|exists/i.test(error.message) ? "That username is already taken." : error.message);
+  if (!data.session) return showLoginMsg("Account created, but Supabase still requires email confirmation. Turn it off in Authentication > Providers > Email.");
+  const { data: ok, error: rpcErr } = await sb.rpc("claim_teacher", { code: $("#rCode").value });
+  if (rpcErr) return showLoginMsg("Could not verify the access code: " + rpcErr.message);
+  if (!ok) { await enter(data.session.user); return showLoginMsg("Wrong teacher access code. Your account was created, but enter the correct code below to unlock teacher access."); }
+  await enter(data.session.user);
+});
+
+// Existing account without teacher role: unlock with the access code
+$("#claimView").addEventListener("submit", async e => {
+  e.preventDefault();
+  const { data: ok, error } = await sb.rpc("claim_teacher", { code: $("#cCode").value });
+  if (error) return showLoginMsg("Could not verify the access code: " + error.message);
+  if (!ok) return showLoginMsg("Wrong teacher access code.");
   await enter(await getSessionUser());
 });
 $("#logout").addEventListener("click", async () => { await sb.auth.signOut(); location.reload(); });
@@ -18,9 +46,18 @@ $("#refresh").addEventListener("click", () => load());
 $("#exportXlsx").addEventListener("click", exportExcel);
 $("#search").addEventListener("input", renderProgress);
 
-$$(".tab").forEach(t => t.addEventListener("click", () => {
-  $$(".tab").forEach(x => x.classList.toggle("active", x === t));
+// Dashboard tabs
+$$(".tab[data-tab]").forEach(t => t.addEventListener("click", () => {
+  $$(".tab[data-tab]").forEach(x => x.classList.toggle("active", x === t));
   ["overview", "quiz", "refl"].forEach(n => $("#tab-" + n).classList.toggle("hidden", n !== t.dataset.tab));
+}));
+// Login / create-account tabs
+$$(".tab[data-auth]").forEach(t => t.addEventListener("click", () => {
+  $$(".tab[data-auth]").forEach(x => x.classList.toggle("active", x === t));
+  $("#loginForm").classList.toggle("hidden", t.dataset.auth !== "login");
+  $("#registerForm").classList.toggle("hidden", t.dataset.auth !== "register");
+  $("#claimView").classList.add("hidden");
+  $("#loginMsg").className = "msg hidden";
 }));
 
 async function enter(user) {
@@ -28,8 +65,14 @@ async function enter(user) {
   let profile;
   try { profile = await getProfile(user.id); } catch (e) { return showLoginMsg("Could not load your account."); }
   if (profile.role !== "teacher") {
-    await sb.auth.signOut();
-    return showLoginMsg("This account does not have teacher access.");
+    // Logged in, but not a teacher yet: ask for the access code
+    $("#authTabs").classList.add("hidden");
+    $("#loginForm").classList.add("hidden");
+    $("#registerForm").classList.add("hidden");
+    $("#claimView").classList.remove("hidden");
+    $("#userbox").classList.remove("hidden");
+    $("#whoami").textContent = profile.full_name;
+    return;
   }
   $("#whoami").textContent = profile.full_name;
   $("#userbox").classList.remove("hidden");

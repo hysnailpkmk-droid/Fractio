@@ -24,22 +24,48 @@
     <span id="whoami"></span>
     <button id="logout" class="btn ghost sm">Log out</button>
   </div>
+  <a class="btn ghost sm" href="index.html">← Student page</a>
 </header>
 
 <main>
-  <!-- Login -->
-  <section id="loginView" class="card" style="max-width:440px;margin:40px auto">
-    <h2>Teacher login</h2>
+  <!-- Login / create teacher account -->
+  <section id="loginView" class="card" style="max-width:460px;margin:40px auto">
+    <div class="tabs" id="authTabs">
+      <button class="tab active" data-auth="login">Teacher log in</button>
+      <button class="tab" data-auth="register">Create teacher account</button>
+    </div>
+
     <form id="loginForm">
-      <label for="tEmail">Email</label>
-      <input id="tEmail" type="email" autocomplete="username" required>
+      <label for="tUser">Username or email</label>
+      <input id="tUser" autocomplete="username" required>
       <label for="tPass">Password</label>
       <input id="tPass" type="password" autocomplete="current-password" required>
       <p></p>
       <button class="btn" style="width:100%" type="submit">Log in</button>
     </form>
+
+    <form id="registerForm" class="hidden">
+      <label for="rName">Full name</label>
+      <input id="rName" autocomplete="name" required>
+      <label for="rUser">Username</label>
+      <input id="rUser" autocomplete="username" placeholder="letters and numbers only" required>
+      <label for="rPass">Password (at least 6 characters)</label>
+      <input id="rPass" type="password" autocomplete="new-password" minlength="6" required>
+      <label for="rCode">Teacher access code</label>
+      <input id="rCode" type="password" autocomplete="off" required>
+      <p class="muted" style="font-size:.85rem;margin-top:6px">Ask the FRACTIO administrator for the access code.</p>
+      <button class="btn" style="width:100%" type="submit">Create teacher account</button>
+    </form>
+
+    <form id="claimView" class="hidden">
+      <p><b>This account does not have teacher access yet.</b><br>Enter the teacher access code to continue.</p>
+      <label for="cCode">Teacher access code</label>
+      <input id="cCode" type="password" autocomplete="off" required>
+      <p></p>
+      <button class="btn" style="width:100%" type="submit">Unlock teacher access</button>
+    </form>
+
     <div id="loginMsg" class="msg hidden"></div>
-    <p class="muted" style="margin-top:16px;font-size:.9rem"><a href="index.html">← Back to student page</a></p>
   </section>
 
   <!-- Dashboard -->
