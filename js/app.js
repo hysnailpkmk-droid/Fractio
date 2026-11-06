@@ -110,7 +110,7 @@ const PAGES = ["home", "intro", "learning", "lab", "challenge", "quiz", "closing
 function go(page) {
   if (!state.user && page !== "home") page = "home";
   PAGES.forEach(p => $("#page-" + p).classList.toggle("active", p === page));
-  $$(".chip").forEach(c => c.classList.toggle("active", c.dataset.go === page));
+  $$("#steps .chip").forEach(c => c.classList.toggle("active", c.dataset.go === page));
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 document.addEventListener("click", e => {
@@ -124,7 +124,7 @@ function updateChips() {
     intro: state.introDone || p.learning, learning: p.learning, laboratory: p.laboratory,
     challenge: p.challenge, quiz: p.quiz_score !== null && p.quiz_score !== undefined, closing: state.closingDone
   };
-  $$(".chip").forEach(c => c.classList.toggle("done", !!done[c.dataset.step]));
+  $$("#steps .chip").forEach(c => c.classList.toggle("done", !!done[c.dataset.step]));
 }
 
 /* ---------- authentication ---------- */
@@ -210,6 +210,206 @@ renderMCQ($("#quickQ"), {
   text: "Which fraction is equivalent to 1/2?", options: ["1/3", "2/4", "3/5", "4/5"], answer: 1,
   okMsg: "Great! You understand equivalent fractions.", badMsg: "Not quite. Look at the fraction bars again and try another answer.",
   onDone: () => saveProgress({ learning: true })
+});
+
+/* ---------- Fraction Learning: tabs and extra materials ---------- */
+function showLTab(name) {
+  $$(".subtab").forEach(t => t.classList.toggle("active", t.dataset.ltab === name));
+  $$(".ltab-panel").forEach(p => p.classList.toggle("active", p.id === "ltab-" + name));
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+$$(".subtab").forEach(t => t.addEventListener("click", () => showLTab(t.dataset.ltab)));
+$$("[data-lgo]").forEach(b => b.addEventListener("click", () => showLTab(b.dataset.lgo)));
+// Turn plain "n/d" text inside .fm blocks into stacked fractions
+$$(".fm").forEach(e => { e.innerHTML = fmt(e.innerHTML); });
+
+function numberLine(parts, whole, marks) {
+  const total = parts * whole;
+  let h = '<div class="nl"><div class="line"></div>';
+  for (let i = 0; i <= total; i++) {
+    const left = (i / total * 100).toFixed(2);
+    h += `<div class="tick" style="left:${left}%"></div>`;
+    if (i % parts === 0) h += `<div class="lab" style="left:${left}%">${i / parts}</div>`;
+  }
+  marks.forEach(m => {
+    const left = (m.i / total * 100).toFixed(2);
+    h += `<div class="dot" style="left:${left}%"></div><div class="lab mark" style="left:${left}%">${m.label}</div>`;
+  });
+  return h + "</div>";
+}
+
+function stepper(el, steps, label) {
+  let n = 0;
+  el.innerHTML = '<div class="stepbox"></div><button type="button" class="btn sm"></button>';
+  const box = $(".stepbox", el), btn = $(".btn", el);
+  function draw() {
+    box.innerHTML = steps.slice(0, n).map((s, i) => `<div class="stp"><b>Step ${i + 1}.</b> ${fmt(s)}</div>`).join("");
+    btn.textContent = n === 0 ? (label || "Show the steps") : n < steps.length ? "Show next step" : "Start over";
+  }
+  btn.addEventListener("click", () => { n = n < steps.length ? n + 1 : 0; draw(); });
+  draw();
+}
+
+function areaHTML(cols, rows, shadeCols, shadeRows) {
+  let c = "";
+  for (let r = 0; r < rows; r++) for (let k = 0; k < cols; k++) {
+    const inC = k < shadeCols, inR = r < shadeRows;
+    c += `<span class="${inC && inR ? "cr" : inC ? "c" : inR ? "r" : ""}"></span>`;
+  }
+  return `<div class="area" style="grid-template-columns:repeat(${cols},1fr)">${c}</div>`;
+}
+
+/* --- Tab 1: concept --- */
+$("#readPizza").innerHTML = pizzaSVG(4, new Set([0, 1, 2]));
+$("#nl1").innerHTML = numberLine(4, 1, [{ i: 3, label: fracHTML(3, 4) }]);
+$("#nl2").innerHTML = numberLine(2, 2, [{ i: 3, label: `1 ${fracHTML(1, 2)}` }]);
+$("#formsBody").innerHTML = [["1/2", "0.5", "50%"], ["1/4", "0.25", "25%"], ["3/4", "0.75", "75%"], ["1 1/2", "1.5", "150%"]]
+  .map(r => `<tr><td>${fmt(r[0])}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join("");
+renderMCQ($("#concQ"), {
+  section: "Fraction Learning", key: "concept_check",
+  text: "A pizza has 8 equal slices and you eat 3 of them. Which fraction shows the part you ate?",
+  options: ["3/5", "5/8", "3/8", "8/3"], answer: 2,
+  okMsg: "Correct! 3 parts are taken out of 8 equal parts: 3/8.",
+  badMsg: "Not quite. The numerator is the parts you take; the denominator is all the equal parts."
+});
+
+/* --- Tab 2: equivalent fractions, simplifying, comparing --- */
+(function equivalenceExplorer() {
+  const bases = [[1, 2], [2, 3], [3, 4], [2, 5]];
+  let bi = 0, k = 2;
+  const pb = $("#eqBase"), pk = $("#eqMult"), out = $("#eqOut");
+  pb.innerHTML = bases.map((f, i) => `<button type="button" class="chip" data-i="${i}">${f[0]}/${f[1]}</button>`).join("");
+  pk.innerHTML = [2, 3, 4, 5].map(n => `<button type="button" class="chip" data-k="${n}">× ${n}</button>`).join("");
+  function draw() {
+    const [n, d] = bases[bi];
+    $$(".chip", pb).forEach(c => c.classList.toggle("active", +c.dataset.i === bi));
+    $$(".chip", pk).forEach(c => c.classList.toggle("active", +c.dataset.k === k));
+    out.innerHTML = `<div class="bars">${barHTML(n, d)}${barHTML(n * k, d * k)}</div>
+      <p style="text-align:center;font-size:1.2rem">${fracHTML(n, d)} = ${fracHTML(`${n} × ${k}`, `${d} × ${k}`)} = ${fracHTML(n * k, d * k)}</p>`;
+  }
+  $$(".chip", pb).forEach(c => c.addEventListener("click", () => { bi = +c.dataset.i; draw(); }));
+  $$(".chip", pk).forEach(c => c.addEventListener("click", () => { k = +c.dataset.k; draw(); }));
+  draw();
+})();
+
+(function gcfDemo() {
+  const pick = $("#gcfPick"), out = $("#gcfOut");
+  pick.innerHTML = [2, 3, 4].map(n => `<button type="button" class="chip" data-n="${n}">÷ ${n}</button>`).join("");
+  out.textContent = "Choose a number to divide both 12 and 16 by.";
+  $$(".chip", pick).forEach(c => c.addEventListener("click", () => {
+    $$(".chip", pick).forEach(x => x.classList.toggle("active", x === c));
+    const n = +c.dataset.n;
+    if (n === 2) out.innerHTML = `<div class="bars">${barHTML(6, 8)}</div>` + fmt("12/16 = 6/8. It is equivalent, but 6 and 8 can still both be divided by 2. Keep going!");
+    else if (n === 3) out.innerHTML = fmt("3 divides 12, but 16 ÷ 3 is not a whole number, so this does not work.");
+    else out.innerHTML = `<div class="bars">${barHTML(3, 4)}</div>` + fmt("12/16 = 3/4. No number except 1 divides both 3 and 4, so this is the simplest form. 4 is the GCF of 12 and 16!");
+  }));
+})();
+
+renderMCQ($("#gcfQ"), {
+  section: "Fraction Learning", key: "gcf_practice",
+  text: "Simplify 10/15.", options: ["2/5", "1/3", "2/3", "5/7"], answer: 2,
+  okMsg: "Correct! The GCF of 10 and 15 is 5, so 10/15 = 2/3.",
+  badMsg: "Not quite. Find the GCF of 10 and 15, then divide both numbers by it."
+});
+
+$("#cmpBars").innerHTML = barHTML(2, 5) + barHTML(1, 3);
+stepper($("#cmpSteps"), [
+  "Multiples of 5: 5, 10, 15. Multiples of 3: 3, 6, 9, 12, 15. The LCM of 5 and 3 is 15.",
+  `Change both fractions to fifteenths: 2/5 = 6/15 and 1/3 = 5/15.<div class="bars">${barHTML(6, 15)}${barHTML(1 * 5, 15)}</div>`,
+  "The pieces are now the same size, so compare the numerators: 6 is more than 5.",
+  "So 2/5 is greater than 1/3."
+]);
+renderMCQ($("#cmpQ1"), {
+  section: "Fraction Learning", key: "compare_practice",
+  text: "Which fraction is greater: 7/9 or 5/6?", options: ["7/9", "5/6", "They are equal", "It cannot be determined"], answer: 1,
+  okMsg: "Correct! The LCM of 9 and 6 is 18: 7/9 = 14/18 and 5/6 = 15/18, so 5/6 is greater.",
+  badMsg: "Not quite. Use the LCM of 9 and 6 to make the denominators the same."
+});
+renderMCQ($("#cmpQ2"), {
+  section: "Fraction Learning", key: "order_practice",
+  text: "Order 1/2, 3/5 and 2/3 from smallest to largest.",
+  options: ["2/3, 3/5, 1/2", "1/2, 2/3, 3/5", "1/2, 3/5, 2/3", "3/5, 1/2, 2/3"], answer: 2,
+  okMsg: "Correct! With denominator 30: 15/30, 18/30 and 20/30.",
+  badMsg: "Not quite. Find the LCM of 2, 5 and 3, then compare the numerators."
+});
+
+/* --- Tab 3: arithmetic operations --- */
+$("#addSame").innerHTML = `<div class="bars">${barHTML(2, 7)}${barHTML(3, 7)}${barHTML(5, 7)}</div>
+  <p style="text-align:center;font-size:1.2rem">${fracHTML(2, 7)} + ${fracHTML(3, 7)} = ${fracHTML(5, 7)}</p>`;
+
+stepper($("#addDiffSteps"), [
+  `Thirds and fourths are different-sized pieces, so we cannot add them yet.<div class="bars">${barHTML(1, 3)}${barHTML(1, 4)}</div>`,
+  "Find the LCM of 3 and 4. Multiples of 3: 3, 6, 9, 12. Multiples of 4: 4, 8, 12. The LCM is 12.",
+  `Change both fractions to twelfths: 1/3 = 4/12 and 1/4 = 3/12.<div class="bars">${barHTML(4, 12)}${barHTML(3, 12)}</div>`,
+  "The pieces are now the same size. Add the numerators: 4/12 + 3/12 = 7/12.",
+  "Simplify if possible. 7 and 12 have no common factor, so the answer is 7/12."
+]);
+stepper($("#subSteps"), [
+  "The LCM of 6 and 3 is 6.",
+  "Change 1/3 into sixths: 1/3 = 2/6.",
+  "Subtract the numerators: 5/6 − 2/6 = 3/6.",
+  "Simplify with the GCF 3: 3/6 = 1/2."
+]);
+stepper($("#mixedAdd"), [
+  "Method 1 (improper fractions). Change each mixed number: 1 1/2 = 3/2 and 2 1/3 = 7/3.",
+  "The LCM of 2 and 3 is 6: 3/2 = 9/6 and 7/3 = 14/6.",
+  "Add: 9/6 + 14/6 = 23/6.",
+  "Change back to a mixed number: 23 ÷ 6 = 3 remainder 5, so 23/6 = 3 5/6.",
+  "Method 2 (whole numbers and fractions separately): (1 + 2) + (1/2 + 1/3) = 3 + 5/6 = 3 5/6. The same answer!"
+]);
+stepper($("#mixedSub"), [
+  "Change each mixed number: 2 1/4 = 9/4 and 1 1/2 = 3/2.",
+  "Make the denominators the same: 3/2 = 6/4.",
+  "Subtract: 9/4 − 6/4 = 3/4.",
+  "Check with decimals: 2.25 − 1.5 = 0.75, and 3/4 = 0.75. It matches!"
+]);
+
+$("#mulArea").innerHTML = areaHTML(3, 2, 2, 1);
+$("#mulLegend").innerHTML = fmt("Light purple = 2/3 (2 of 3 columns). Pink = 1/2 (1 of 2 rows). Dark = the overlap: 2 of 6 boxes, so 1/2 × 2/3 = 2/6 = 1/3.");
+stepper($("#mulSteps"), [
+  "Multiply the numerators: 2 × 3 = 6.",
+  "Multiply the denominators: 3 × 5 = 15.",
+  "So 2/3 × 3/5 = 6/15.",
+  "Simplify with the GCF 3: 6/15 = 2/5.",
+  "Shortcut: cancel before multiplying. The 3 in the numerator and the 3 in the denominator cancel, leaving 2/5 right away."
+]);
+
+(function divisionPicker() {
+  const pick = $("#divPick"), out = $("#divOut"), ds = [2, 3, 4, 6];
+  pick.innerHTML = ds.map(d => `<button type="button" class="chip" data-d="${d}">1/${d} pieces</button>`).join("");
+  function draw(d) {
+    $$(".chip", pick).forEach(c => c.classList.toggle("active", +c.dataset.d === d));
+    const seg = Array.from({ length: d }, () => "<span class='on'></span>").join("");
+    const bar = `<div class="barrow"><b style="min-width:64px">1 whole</b><div class="bar">${seg}</div></div>`;
+    out.innerHTML = `<div class="bars">${bar}${bar}</div>
+      <p style="text-align:center;font-size:1.2rem">${fmt(`2 ÷ 1/${d}`)} = <b>${2 * d}</b> pieces</p>
+      <p class="muted" style="text-align:center">What do you notice about the answer as the pieces get smaller?</p>`;
+  }
+  $$(".chip", pick).forEach(c => c.addEventListener("click", () => draw(+c.dataset.d)));
+  draw(2);
+})();
+stepper($("#divSteps"), [
+  "Write the division: 2/3 ÷ 1/6.",
+  "Change ÷ into ×, and flip the second fraction. The reciprocal of 1/6 is 6/1. So we get 2/3 × 6/1.",
+  "Multiply: (2 × 6) / (3 × 1) = 12/3.",
+  "Simplify: 12/3 = 4.",
+  "Check with pieces: 2/3 = 4/6, so exactly 4 pieces of size 1/6 fit inside. ✓"
+]);
+
+[
+  { k: "ops_add", t: "1/2 + 1/6 = …", o: ["2/8", "2/3", "1/3", "3/4"], a: 1, ok: "Correct! 1/2 = 3/6, so 3/6 + 1/6 = 4/6 = 2/3." },
+  { k: "ops_sub", t: "3/4 − 1/8 = …", o: ["2/4", "3/4", "5/8", "2/8"], a: 2, ok: "Correct! 3/4 = 6/8, so 6/8 − 1/8 = 5/8." },
+  { k: "ops_mixed", t: "1 1/4 + 2 1/2 = …", o: ["3 2/6", "3 3/4", "3 1/2", "4 1/4"], a: 1, ok: "Correct! 5/4 + 10/4 = 15/4 = 3 3/4." },
+  { k: "ops_mul", t: "1/4 × 2/3 = …", o: ["3/7", "1/6", "2/7", "1/12"], a: 1, ok: "Correct! 1 × 2 = 2 and 4 × 3 = 12, so 2/12 = 1/6." },
+  { k: "ops_div", t: "1/2 ÷ 1/4 = …", o: ["1/8", "2", "1/2", "4"], a: 1, ok: "Correct! 1/2 × 4/1 = 4/2 = 2." }
+].forEach((q, i) => {
+  const box = document.createElement("div");
+  if (i) box.className = "qgap";
+  $("#opsQ").appendChild(box);
+  renderMCQ(box, {
+    section: "Fraction Learning", key: q.k, text: q.t, options: q.o, answer: q.a,
+    okMsg: q.ok, badMsg: "Not quite. Re-read the steps in Material 5 or 6 and try again."
+  });
 });
 
 /* ---------- Fraction Laboratory ---------- */
